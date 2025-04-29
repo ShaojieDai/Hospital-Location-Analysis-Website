@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0"><i class="fas fa-search me-2"></i>Search Results</h2>
+                <a href="/" class="btn btn-outline-primary"><i class="fas fa-home me-2"></i>Back to Home</a>
+            </div>
+            <p class="lead mt-2">Your query: <span class="fw-bold">"{{ query }}"</span></p>
+            {% if enhanced_query and enhanced_query != query %}
+            <div class="alert alert-info d-flex align-items-center" role="alert">
+                <i class="fas fa-magic me-2"></i>
+                <div>
+                    <strong>AI-Enhanced Query:</strong> "{{ enhanced_query }}"
+                    <div class="small text-muted">Our AI has improved your search query for better results</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Dataset Info -->
+            <div class="mb-3">
+                <span class="badge {% if data_source == 'custom' %}bg-success{% elif data_source == 'selected' %}bg-info{% else %}bg-secondary{% endif %} px-3 py-2">
+                    <i class="fas fa-database me-1"></i> {{ dataset_name }}
+                </span>
+            </div>
+
+            {% if ai_search_summary %}
+            <div class="alert alert-primary d-flex" role="alert">
+                <div class="me-3">
+                    <i class="fas fa-robot fa-2x"></i>
+                </div>
+                <div>
+                    <strong class="d-block mb-1">AI Analysis Summary:</strong>
+                    <p class="mb-0">{{ ai_search_summary }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if search_summary %}
+            <div class="alert alert-light border d-flex" role="alert">
+                <div class="me-3">
+                    <i class="fas fa-info-circle fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <p class="mb-0">{{ search_summary }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if ai_insights %}
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-brain me-2"></i>AI Search Intelligence</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-search me-1"></i> Search Analysis</h6>
+                            <div class="mb-3">
+                                <span class="text-muted">Search Type:</span>
+                                <span class="badge bg-primary ms-2 px-3 py-2">{{ ai_insights.search_type|title }}</span>
+                            </div>
+
+                            <div class="mb-3">
+                                <span class="text-muted">Key Terms:</span>
+                                <div class="mt-2">
+                                    {% for term in ai_insights.key_terms %}
+                                    <span class="badge bg-info text-dark px-3 py-2 me-2 mb-2">{{ term }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {% if ai_insights.suggested_queries %}
+                            <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="fas fa-lightbulb me-1"></i> Suggested Queries</h6>
+                            <div class="list-group">
+                                {% for query in ai_insights.suggested_queries %}
+                                <a href="#" class="list-group-item list-group-item-action" onclick="document.getElementById('search-form').query.value='{{ query }}'; document.getElementById('search-form').submit(); return false;">
+                                    <i class="fas fa-angle-right me-2"></i>{{ query }}
+                                </a>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if ai_insights.numbers %}
+                            <h6 class="border-bottom pb-2 mb-3"><i class="fas fa-hashtag me-1"></i> Numerical Data</h6>
+                            <ul class="list-group mb-3">
+                                {% for num in ai_insights.numbers %}
+                                {% if num is mapping %}
+                                <li class="list-group-item d-flex align-items-center">
+                                    <span class="badge bg-secondary rounded-pill me-2">{{ num.value }}</span>
+                                    <span>{{ num.context }}</span>
+                                </li>
+                                {% else %}
+                                <li class="list-group-item">{{ num }}</li>
+                                {% endif %}
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+
+                            {% if ai_insights.locations %}
+                            <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="fas fa-map-marker-alt me-1"></i> Locations Identified</h6>
+                            <ul class="list-group">
+                                {% for loc in ai_insights.locations %}
+                                {% if loc is mapping %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>{{ loc.name }}</span>
+                                    {% if loc.importance %}
+                                    <span class="badge bg-primary rounded-pill">{{ loc.importance }}</span>
+                                    {% endif %}
+                                </li>
+                                {% else %}
+                                <li class="list-group-item">{{ loc }}</li>
+                                {% endif %}
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2"></i>Interactive Map</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="map" style="height: 600px; border-radius: 0 0 0.25rem 0.25rem;"></div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i> Click on markers for detailed information. Zoom in/out using mouse wheel.
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            {% if result_table %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-table me-2"></i>Data Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    {% for col in result_table.columns %}
+                                    <th>{{ col }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in result_table.rows %}
+                                <tr>
+                                    {% for cell in row %}
+                                    <td>{{ cell }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer text-end">
+                    <small class="text-muted">Showing {{ result_table.rows|length }} result(s)</small>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2 text-primary"></i>AI-Powered Features</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex">
+                            <div class="me-3 text-primary">
+                                <i class="fas fa-brain fa-lg"></i>
+                            </div>
+                            <div>
+                                <strong>Intelligent Analysis</strong>
+                                <p class="mb-0 small text-muted">AI examines your search query to extract key information and context</p>
+                            </div>
+                        </li>
+                        <li class="list-group-item d-flex">
+                            <div class="me-3 text-primary">
+                                <i class="fas fa-map-marked fa-lg"></i>
+                            </div>
+                            <div>
+                                <strong>Location Intelligence</strong>
+                                <p class="mb-0 small text-muted">Automatically identifies and highlights meaningful locations in your search</p>
+                            </div>
+                        </li>
+                        <li class="list-group-item d-flex">
+                            <div class="me-3 text-primary">
+                                <i class="fas fa-magic fa-lg"></i>
+                            </div>
+                            <div>
+                                <strong>Query Enhancement</strong>
+                                <p class="mb-0 small text-muted">Improves your search queries for more accurate and relevant results</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize map
+    const map = L.map('map').setView([{{ center_lat }}, {{ center_lng }}], {{ zoom_level }});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Add Fullscreen control
+    L.control.fullscreen().addTo(map);
+
+    // Add map elements
+    const map_data = {{ map_data|safe }};
+
+    // Add markers
+    if (map_data.markers && map_data.markers.length > 0) {
+        map_data.markers.forEach(marker => {
+            let markerObj;
+
+            // Check if custom icon is specified
+            if (marker.icon) {
+                let iconOptions = {
+                    iconSize: [25, 25],
+                    iconAnchor: [12, 12],
+                    popupAnchor: [0, -10]
+                };
+
+                if (marker.icon.prefix && marker.icon.icon) {
+                    // Font Awesome icon
+                    const markerIcon = L.divIcon({
+                        html: `<i class="${marker.icon.prefix} fa-${marker.icon.icon}" style="color: ${marker.icon.color || 'red'}; font-size: ${marker.icon.size || 15}px;"></i>`,
+                        className: 'custom-div-icon',
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
+                    markerObj = L.marker([marker.lat, marker.lng], { icon: markerIcon });
+                } else {
+                    markerObj = L.marker([marker.lat, marker.lng]);
+                }
+            } else {
+                markerObj = L.marker([marker.lat, marker.lng]);
+            }
+
+            // Add popup if provided
+            if (marker.popup) {
+                markerObj.bindPopup(marker.popup);
+            }
+
+            // Create tooltip with just the hospital name if it's a hospital
+            if (marker.popup && marker.popup.includes('Hospital')) {
+                // Extract hospital name from popup HTML
+                const nameMatch = marker.popup.match(/<h4>(.*?)<\/h4>/);
+                if (nameMatch && nameMatch[1]) {
+                    // Create a short tooltip with just the name
+                    markerObj.bindTooltip(nameMatch[1], {
+                        direction: 'top',
+                        permanent: false,
+                        opacity: 0.9,
+                        className: 'hospital-tooltip'
+                    });
+                }
+            }
+
+            markerObj.addTo(map);
+        });
+    }
+
+    // Add labels for population markers (but not for hospitals)
+    if (map_data.labels && map_data.labels.length > 0) {
+        map_data.labels.forEach(label => {
+            // Only add permanent labels for population data, not hospitals
+            if (label.text && !label.text.includes('Hospital')) {
+                const style = label.style || {};
+                const labelIcon = L.divIcon({
+                    html: `<div style="
+                        color: ${style.color || 'black'};
+                        font-size: ${style.fontSize || '12px'};
+                        font-weight: ${style.fontWeight || 'normal'};
+                        background-color: ${style.backgroundColor || 'white'};
+                        padding: ${style.padding || '2px 5px'};
+                        border-radius: ${style.borderRadius || '3px'};
+                        border: ${style.border || '1px solid gray'};
+                        white-space: nowrap;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                    ">${label.text}</div>`,
+                    className: 'marker-label',
+                    iconAnchor: [25, 0] // Position above marker
+                });
+                L.marker([label.lat, label.lng], {
+                    icon: labelIcon,
+                    interactive: false, // Non-interactive so it doesn't interfere with marker clicks
+                    zIndexOffset: 1000 // Show above other markers
+                }).addTo(map);
+            }
+        });
+    }
+
+    // Add polygons
+    if (map_data.polygons && map_data.polygons.length > 0) {
+        map_data.polygons.forEach(polygon => {
+            L.polygon(polygon.coordinates, {
+                color: polygon.color || '#3388ff',
+                fillOpacity: polygon.fillOpacity || 0.2
+            }).addTo(map);
+        });
+    }
+
+    // Add circles
+    if (map_data.circles && map_data.circles.length > 0) {
+        map_data.circles.forEach(circle => {
+            L.circle([circle.lat, circle.lng], {
+                radius: circle.radius,
+                color: circle.color || '#3388ff',
+                fillOpacity: circle.fillOpacity || 0.2
+            }).addTo(map);
+        });
+    }
+
+    // Add heatmap if available
+    if (map_data.heatmap && map_data.heatmap.length > 0) {
+        const heat = L.heatLayer(map_data.heatmap, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 17
+        }).addTo(map);
+    }
+});
+</script>
+
+<!-- Add styles for tooltips -->
+<style>
+.hospital-tooltip {
+    font-size: 14px;
+    font-weight: bold;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid #3388ff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+}
+</style>
+
+<!-- Hidden form for suggested queries -->
+<form id="search-form" action="/search" method="post" style="display: none;">
+    <input type="hidden" name="query" value="">
+    <input type="hidden" name="data_type" value="all">
+</form>
+{% endblock %}
